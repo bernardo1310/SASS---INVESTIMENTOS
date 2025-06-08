@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Gestor Financeiro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        // Cores para o modo escuro (ajustadas para serem mais escuras ou claras conforme o uso)
+                        darkbg: { // Nova paleta de fundo escuro
+                            DEFAULT: '#121212', // Cor de fundo principal
+                            card: '#1E1E1E',   // Cor de fundo para cards/containers
+                            lighter: '#2C2C2C',// Cor para inputs e elementos mais claros no escuro
+                            border: '#333333',  // Cor de borda no escuro
+                            table_hover: '#222222', // Cor de hover na tabela
+                            accent: '#BB86FC', // Cor de destaque principal (links, botões)
+                            accent_dark: '#3700B3', // Cor de destaque no hover
+                        },
+                        text: { // Nova paleta de texto para o modo escuro
+                            DEFAULT: '#E0E0E0', // Cor de texto padrão
+                            heading: '#FFFFFF', // Cor de títulos
+                            secondary: '#A0A0A0', // Cor de texto secundário
+                            placeholder: '#888888', // Cor de placeholder
+                        },
+                        primary: { // Mantendo as cores primárias, mas adaptando o uso
+                            100: '#BB86FC', // Azul original agora um roxo para consistência no dark mode
+                            500: '#BB86FC', // Roxo mais vibrante
+                            700: '#3700B3', // Roxo mais escuro para hover
+                        },
+                        success: '#66BB6A', // Verde um pouco mais claro para legibilidade no escuro
+                        warning: '#FFC107', // Amarelo um pouco mais claro
+                        danger: '#EF5350',  // Vermelho um pouco mais claro
+                        purple: {
+                            50: '#ede9fe',
+                            100: '#d9d2fc',
+                            500: '#BB86FC',
+                            800: '#5b21b6',
+                        },
+                        crypto: {
+                            DEFAULT: '#FF9500',
+                            dark: '#E68A00'
+                        },
+                        energy: {
+                            DEFAULT: '#FF3B30',
+                            dark: '#E6352B'
+                        },
+                        utilities: {
+                            DEFAULT: '#34C759',
+                            dark: '#2DB34F'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Manter os estilos existentes que não são sobre cores */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        
+        .delay-100 {
+            animation-delay: 0.1s;
+        }
+        
+        .delay-200 {
+            animation-delay: 0.2s;
+        }
+        
+        .delay-300 {
+            animation-delay: 0.3s;
+        }
+
+        /* Estilos para a notificação */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: theme('colors.darkbg.accent');
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease-out;
+            opacity: 0;
+            transform: translateY(-20px);
+            z-index: 1000;
+        }
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Adicionar um estilo para o hover da linha da tabela no modo escuro */
+        .dark-table-row:hover {
+            background-color: theme('colors.darkbg.table_hover');
+        }
+
+        /* Estilo para inputs de edição */
+        .edit-input {
+            background-color: theme('colors.darkbg.lighter');
+            border: 1px solid theme('colors.darkbg.border');
+            border-radius: 0.375rem; /* rounded-md */
+            padding: 0.25rem 0.5rem; /* px-2 py-1 */
+            color: theme('colors.text.DEFAULT');
+            width: 100%;
+            font-size: 1.5rem; /* text-2xl */
+            font-weight: bold; /* font-bold */
+        }
+    </style>
+</head>
+<body class="bg-darkbg text-text min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 animate-fade-in">
+            <div class="flex items-center gap-4">
+                <div class="bg-primary-500 text-white p-3 rounded-lg shadow-lg">
+                    <i class="fas fa-wallet text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-text-heading">Meu Gestor Financeiro</h1>
+                    <p class="text-text-secondary">Controle seus investimentos de forma inteligente</p>
+                </div>
+            </div>
+            <div class="bg-darkbg-card p-3 rounded-lg shadow-md w-full md:w-auto">
+                <div class="flex items-center gap-3">
+                    <div class="text-right">
+                        <p class="text-sm text-text-secondary">Saldo disponível</p>
+                        <p class="text-xl font-bold">R$ <span id="currentBalance">0</span></p>
+                    </div>
+                    <button onclick="addFunds()" class="bg-primary-500 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-2">
+                        <i class="fas fa-plus"></i> Adicionar
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div class="bg-darkbg-card rounded-xl shadow-md p-6 lg:col-span-2 animate-fade-in delay-100">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-text-heading">Distribuição de Investimentos</h2>
+                    <div class="flex gap-2">
+                        <button onclick="showMonthlyView()" id="monthlyBtn" class="bg-primary-500 text-white px-3 py-1 rounded-md text-sm">Mensal</button>
+                        <button onclick="showAnnualView()" id="annualBtn" class="bg-darkbg-lighter text-text-secondary px-3 py-1 rounded-md text-sm">Anual</button>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="chart-container">
+                        <svg viewBox="0 0 100 100" class="w-full h-full max-w-[300px] max-h-[300px]">
+                            <circle class="progress-ring__circle fixed-income"
+                                    stroke-width="8" 
+                                    fill="transparent"
+                                    r="40"
+                                    cx="50"
+                                    cy="50"
+                                    style="stroke-dasharray: 251.33, 251.33; stroke-dashoffset: 251.33; stroke: #BB86FC;" />
+                            <circle class="progress-ring__circle banks"
+                                    stroke-width="8"
+                                    fill="transparent"
+                                    r="40"
+                                    cx="50"
+                                    cy="50"
+                                    style="stroke-dasharray: 251.33, 251.33; stroke-dashoffset: 251.33; stroke: #66BB6A;" />
+                            <circle class="progress-ring__circle utilities"
+                                    stroke-width="8"
+                                    fill="transparent"
+                                    r="40"
+                                    cx="50"
+                                    cy="50"
+                                    style="stroke-dasharray: 251.33, 251.33; stroke-dashoffset: 251.33; stroke: #FFC107;" />
+                            <circle class="progress-ring__circle etfs"
+                                    stroke-width="8"
+                                    fill="transparent"
+                                    r="40"
+                                    cx="50"
+                                    cy="50"
+                                    style="stroke-dasharray: 251.33, 251.33; stroke-dashoffset: 251.33; stroke: #9C27B0;" />
+                            <text x="50" y="50" text-anchor="middle" dy="0.3em" font-size="12" fill="theme('colors.text.secondary')">R$ <span id="chartTotalValue">0</span></text>
+                        </svg>
+                    </div>
+                    
+                    <div>
+                        <div class="mb-4">
+                            <div class="flex items-center justify-between mb-1">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-3 h-3 rounded-full" style="background-color: #BB86FC;"></div>
+                                    <span class="text-sm font-medium text-text">Renda Fixa</span>
+                                </div>
+                                <span class="text-sm font-bold text-text" id="fixedIncomePercentage">0% (R$ 0)</span>
+                            </div>
+                            <div class="w-full bg-darkbg-border rounded h-2">
+                                <div class="h-2 rounded" id="fixedIncomeProgressBar" style="width: 0%; background-color: #BB86FC;"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="flex items-center justify-between mb-1">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-3 h-3 rounded-full bg-success"></div>
+                                    <span class="text-sm font-medium text-text">Bancos</span>
+                                </div>
+                                <span class="text-sm font-bold text-text" id="banksPercentage">0% (R$ 0)</span>
+                            </div>
+                            <div class="w-full bg-darkbg-border rounded h-2">
+                                <div class="bg-success h-2 rounded" id="banksProgressBar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <div class="flex items-center justify-between mb-1">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-3 h-3 rounded-full bg-warning"></div>
+                                    <span class="text-sm font-medium text-text">Energia/Utilidades</span>
+                                </div>
+                                <span class="text-sm font-bold text-text" id="utilitiesPercentage">0% (R$ 0)</span>
+                            </div>
+                            <div class="w-full bg-darkbg-border rounded h-2">
+                                <div class="bg-warning h-2 rounded" id="utilitiesProgressBar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <div class="flex items-center justify-between mb-1">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-3 h-3 rounded-full bg-purple-500"></div>
+                                    <span class="text-sm font-medium text-text">ETFs Dividendos</span>
+                                </div>
+                                <span class="text-sm font-bold text-text" id="etfsPercentage">0% (R$ 0)</span>
+                            </div>
+                            <div class="w-full bg-darkbg-border rounded h-2">
+                                <div class="bg-purple-500 h-2 rounded" id="etfsProgressBar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-darkbg-card rounded-xl shadow-md p-6 animate-fade-in delay-200">
+                <h2 class="text-xl font-bold text-text-heading mb-6">Próximos Passos</h2>
+                <div class="space-y-4">
+                    <div class="flex gap-4 p-3 bg-darkbg-lighter rounded-lg">
+                        <div class="text-primary-500 text-xl mt-1">
+                            <i class="far fa-calendar-check"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-text">Investimento agendado</h3>
+                            <p class="text-sm text-text-secondary">Data: <span class="font-medium">07/07</span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-4 p-3 bg-darkbg-lighter rounded-lg">
+                        <div class="text-success text-xl mt-1">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-text">Relatório mensal</h3>
+                            <p class="text-sm text-text-secondary">Vencimento: <span class="font-medium">30/06</span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-4 p-3 bg-darkbg-lighter rounded-lg">
+                        <div class="text-warning text-xl mt-1">
+                            <i class="fas fa-exclamation-circle"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-text">Ajuste de portfólio</h3>
+                            <p class="text-sm text-text-secondary">Recomendado: <span class="font-medium">Revisar 15/07</span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-4 p-3 bg-darkbg-lighter rounded-lg">
+                        <div class="text-purple-500 text-xl mt-1">
+                            <i class="fas fa-donate"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-text">Dividendos esperados</h3>
+                            <p class="text-sm text-text-secondary">Próximo pagamento: <span class="font-medium">15/07</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-darkbg-card rounded-xl shadow-md p-6 mb-8 animate-fade-in delay-300">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-text-heading">Meus Investimentos</h2>
+                <button onclick="openAddInvestmentModal()" class="bg-primary-500 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-2">
+                    <i class="fas fa-plus"></i> Adicionar
+                </button>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="text-left border-b border-darkbg-border text-text-secondary text-sm">
+                            <th class="pb-3 font-medium">Setor</th>
+                            <th class="pb-3 font-medium">Ativo</th>
+                            <th class="pb-3 font-medium">% Alocado</th>
+                            <th class="pb-3 font-medium">Valor</th>
+                            <th class="pb-3 font-medium">Observação</th>
+                            <th class="pb-3 font-medium">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="investmentsTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="bg-darkbg-card rounded-xl shadow-md p-6 animate-fade-in delay-200">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-text-heading">Progresso do Mês</h2>
+                <div id="progressEditButtons">
+                    <button onclick="toggleEditProgress()" class="bg-primary-500 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-2">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-darkbg-lighter p-4 rounded-lg">
+                    <h3 class="text-sm font-medium text-text-secondary mb-2">Total Alocado</h3>
+                    <p class="text-2xl font-bold text-text" id="displayAmountInvested">R$ <span id="amountInvested">0</span></p>
+                    <div class="w-full bg-darkbg-border rounded h-1.5 mt-2">
+                        <div class="bg-success rounded h-1.5" id="totalAllocatedProgressBar" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <div class="bg-darkbg-lighter p-4 rounded-lg">
+                    <h3 class="text-sm font-medium text-text-secondary mb-2">Meta Mensal</h3>
+                    <p class="text-2xl font-bold text-text" id="displayMonthlyGoal">R$ <span id="monthlyGoal">1000</span></p>
+                    <div class="w-full bg-darkbg-border rounded h-1.5 mt-2">
+                        <div class="bg-primary-500 rounded h-1.5" id="monthlyGoalProgressBar" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div class="bg-darkbg-lighter p-4 rounded-lg">
+                    <h3 class="text-sm font-medium text-text-secondary mb-2">Dividendos</h3>
+                    <p class="text-2xl font-bold text-text" id="displayDividends">R$ <span id="dividends">0</span></p>
+                    <div class="w-full bg-darkbg-border rounded h-1.5 mt-2">
+                        <div class="bg-warning rounded h-1.5" id="dividendsProgressBar" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div class="bg-darkbg-lighter p-4 rounded-lg">
+                    <h3 class="text-sm font-medium text-text-secondary mb-2">Rentabilidade</h3>
+                    <p class="text-2xl font-bold text-text" id="displayProfitability"><span id="profitability">0</span>%</p>
+                    <div class="w-full bg-darkbg-border rounded h-1.5 mt-2">
+                        <div class="bg-purple-500 rounded h-1.5" id="profitabilityProgressBar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="addInvestmentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden px-4 z-50">
+        <div class="bg-darkbg-card rounded-xl p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-text-heading" id="investmentModalTitle">Adicionar Investimento</h3>
+                <button onclick="closeAddInvestmentModal()" class="text-text-secondary hover:text-darkbg-accent">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="investmentForm" class="space-y-4">
+                <input type="hidden" id="investmentId">
+                <div>
+                    <label for="investmentSector" class="block text-sm font-medium text-text-secondary mb-1">Setor</label>
+                    <select id="investmentSector" class="w-full px-3 py-2 border border-darkbg-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 bg-darkbg-lighter text-text">
+                        <option value="Renda Fixa">Renda Fixa</option>
+                        <option value="Bancos">Bancos</option>
+                        <option value="Energia">Energia</option>
+                        <option value="Utilidades">Utilidades</option>
+                        <option value="Cripto">Cripto</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                    <div class="mt-2" id="colorPickerContainer">
+                        <label class="block text-sm font-medium text-text-secondary mb-1">Cor do Setor</label>
+                        <input type="color" id="sectorColor" class="w-full h-10 rounded border border-darkbg-border">
+                    </div>
+                </div>
+                
+                <div>
+                    <label for="investmentAsset" class="block text-sm font-medium text-text-secondary mb-1">Ativos</label>
+                    <input type="text" id="investmentAsset" placeholder="Ex: Taesa, Engie" class="w-full px-3 py-2 border border-darkbg-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 bg-darkbg-lighter text-text placeholder-text-placeholder">
+                </div>
+                
+                <div>
+                    <label for="investmentPercentage" class="block text-sm font-medium text-text-secondary mb-1">Percentual (%)</label>
+                    <input type="number" id="investmentPercentage" min="0" max="100" class="w-full px-3 py-2 border border-darkbg-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 bg-darkbg-lighter text-text placeholder-text-placeholder">
+                </div>
+                
+                <div>
+                    <label for="investmentValue" class="block text-sm font-medium text-text-secondary mb-1">Valor (R$)</label>
+                    <input type="number" id="investmentValue" class="w-full px-3 py-2 border border-darkbg-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 bg-darkbg-lighter text-text placeholder-text-placeholder">
+                </div>
+                
+                <div>
+                    <label for="investmentObservation" class="block text-sm font-medium text-text-secondary mb-1">Observação</label>
+                    <textarea id="investmentObservation" rows="3" class="w-full px-3 py-2 border border-darkbg-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 bg-darkbg-lighter text-text placeholder-text-placeholder"></textarea>
+                </div>
+                
+                <div class="pt-2">
+                    <button type="submit" class="w-full bg-primary-500 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition">
+                        Salvar Investimento
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="addFundsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden px-4 z-50">
+        <div class="bg-darkbg-card rounded-xl p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-text-heading">Adicionar Fundos</h3>
+                <button onclick="closeAddFundsModal()" class="text-text-secondary hover:text-darkbg-accent">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form class="space-y-4">
+                <div>
+                    <label for="newFundsInput" class="block text-sm font-medium text-text-secondary mb-1">Valor (R$)</label>
+                    <input type="number" id="newFundsInput" class="w-full px-3 py-2 border border-darkbg-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 bg-darkbg-lighter text-text placeholder-text-placeholder">
+                </div>
+                
+                <div>
+                    <label for="fundSource" class="block text-sm font-medium text-text-secondary mb-1">Origem</label>
+                    <select id="fundSource" class="w-full px-3 py-2 border border-darkbg-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 bg-darkbg-lighter text-text">
+                        <option>Salário</option>
+                        <option>Dividendos</option>
+                        <option>Freelance</option>
+                        <option>Outros</option>
+                    </select>
+                </div>
+                
+                <div class="pt-2">
+                    <button type="button" onclick="confirmAddFunds()" class="w-full bg-primary-500 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition">
+                        Adicionar ao Saldo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="notificationContainer" class="fixed top-2 right-4 z-50"></div>
+
+    <script>
+        // Carrega o saldo e o total investido do localStorage ou define um valor inicial
+        let currentBalance = parseFloat(localStorage.getItem('currentBalance')) || 0;
+        let amountInvested = parseFloat(localStorage.getItem('amountInvested')) || 0;
+        let investments = JSON.parse(localStorage.getItem('investments')) || [];
+        let editingInvestmentId = null; // To track which investment is being edited
+
+        // --- Variáveis para o Progresso do Mês ---
+        let monthlyGoal = parseFloat(localStorage.getItem('monthlyGoal')) || 1000;
+        let dividends = parseFloat(localStorage.getItem('dividends')) || 0;
+        let profitability = parseFloat(localStorage.getItem('profitability')) || 0;
+
+        // Data for monthly and annual investments
+        let monthlyInvestments = JSON.parse(localStorage.getItem('monthlyInvestments')) || [];
+        let annualInvestments = JSON.parse(localStorage.getItem('annualInvestments')) || [];
+
+        // Current view state ('monthly' or 'annual')
+        let currentView = localStorage.getItem('currentView') || 'monthly'; // Default to monthly
+
+        const initialDefaultInvestments = [
+            { id: Date.now() + 1, sector: 'Renda Fixa', asset: 'Banco Inter, CDBs', percentage: 25, value: 200, observation: 'Investimento conservador' },
+            { id: Date.now() + 2, sector: 'Bancos', asset: 'Banco do Brasil, Itaú, Santander', percentage: 50, value: 400, observation: 'Foco em dividendos' },
+            { id: Date.now() + 3, sector: 'Energia/Utilidades', asset: 'Taesa, Engie, AES Tietê, Copasa, Sabesp', percentage: 30, value: 240, observation: 'Estabilidade e dividendos' },
+            { id: Date.now() + 4, sector: 'ETFs Dividendos', asset: 'DIVO11, IVVB11', percentage: 20, value: 160, observation: 'Diversificação de dividendos' }
+        ];
+
+        // Initialize with default investments if local storage is empty for both monthly and annual
+        if (monthlyInvestments.length === 0) {
+            monthlyInvestments = [...initialDefaultInvestments]; // Copy initial defaults
+            localStorage.setItem('monthlyInvestments', JSON.stringify(monthlyInvestments));
+        }
+        if (annualInvestments.length === 0) {
+            annualInvestments = [...initialDefaultInvestments]; // Copy initial defaults
+            // For annual, let's pretend it has more data
+            annualInvestments.push({ id: Date.now() + 5, sector: 'Outros', asset: 'Fundo Imobiliário XPML11', percentage: 10, value: 100, observation: 'Long-term' });
+            localStorage.setItem('annualInvestments', JSON.stringify(annualInvestments));
+        }
+
+        // Set the 'investments' array based on the current view
+        function setInvestmentsForCurrentView() {
+            if (currentView === 'monthly') {
+                investments = monthlyInvestments;
+            } else {
+                investments = annualInvestments;
+            }
+            amountInvested = investments.reduce((sum, inv) => sum + inv.value, 0);
+        }
+
+        function updateDisplay() {
+            setInvestmentsForCurrentView(); // Ensure 'investments' and 'amountInvested' reflect the current view
+
+            document.getElementById('currentBalance').textContent = currentBalance.toFixed(2);
+            document.getElementById('amountInvested').textContent = amountInvested.toFixed(2);
+            document.getElementById('chartTotalValue').textContent = amountInvested.toFixed(2);
+
+            // Atualiza os valores do Progresso do Mês
+            // Note: Monthly progress values are typically not linked to annual investments.
+            // For this example, we'll keep them distinct from the monthly/annual investment data.
+            document.getElementById('monthlyGoal').textContent = monthlyGoal.toFixed(2);
+            document.getElementById('dividends').textContent = dividends.toFixed(2);
+            document.getElementById('profitability').textContent = profitability.toFixed(2);
+
+            // Atualiza as barras de progresso do Progresso do Mês
+            updateProgressBars();
+
+            renderInvestmentsTable();
+            updateChartAndProgressBars();
+            updateViewButtons();
+        }
+
+        // --- Funções para o Progresso do Mês ---
+        let isEditingProgress = false;
+        let originalProgressValues = {}; // To store values before editing
+
+        function toggleEditProgress() {
+            isEditingProgress = !isEditingProgress;
+            const progressEditButtons = document.getElementById('progressEditButtons');
+            const displayAmountInvested = document.getElementById('displayAmountInvested');
+            const displayMonthlyGoal = document.getElementById('displayMonthlyGoal');
+            const displayDividends = document.getElementById('displayDividends');
+            const displayProfitability = document.getElementById('displayProfitability');
+
+            if (isEditingProgress) {
+                // Store original values before creating inputs
+                originalProgressValues = {
+                    amountInvested: amountInvested,
+                    monthlyGoal: monthlyGoal,
+                    dividends: dividends,
+                    profitability: profitability
+                };
+
+                // Mudar para botões Salvar/Cancelar
+                progressEditButtons.innerHTML = `
+                    <button onclick="saveProgress()" class="bg-success hover:bg-green-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-2 mr-2">
+                        <i class="fas fa-save"></i> Salvar
+                    </button>
+                    <button onclick="cancelEditProgress()" class="bg-danger hover:bg-red-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-2">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                `;
+
+                // Replace spans with inputs
+                displayAmountInvested.innerHTML = `R$ <input type="number" id="editAmountInvested" value="${amountInvested.toFixed(2)}" class="edit-input w-28 md:w-36">`;
+                displayMonthlyGoal.innerHTML = `R$ <input type="number" id="editMonthlyGoal" value="${monthlyGoal.toFixed(2)}" class="edit-input w-28 md:w-36">`;
+                displayDividends.innerHTML = `R$ <input type="number" id="editDividends" value="${dividends.toFixed(2)}" class="edit-input w-28 md:w-36">`;
+                displayProfitability.innerHTML = `<input type="number" id="editProfitability" value="${profitability.toFixed(2)}" class="edit-input w-24 md:w-32">%`;
+
+            } else {
+                // Restore to original display if not explicitly saved
+                progressEditButtons.innerHTML = `
+                    <button onclick="toggleEditProgress()" class="bg-primary-500 hover:bg-primary-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-2">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                `;
+
+                // Replace inputs with spans again and update the display
+                displayAmountInvested.innerHTML = `R$ <span id="amountInvested">${amountInvested.toFixed(2)}</span>`;
+                displayMonthlyGoal.innerHTML = `R$ <span id="monthlyGoal">${monthlyGoal.toFixed(2)}</span>`;
+                displayDividends.innerHTML = `R$ <span id="dividends">${dividends.toFixed(2)}</span>`;
+                displayProfitability.innerHTML = `<span id="profitability">${profitability.toFixed(2)}</span>%`;
+            }
+        }
+
+        function saveProgress() {
+            const newAmountInvested = parseFloat(document.getElementById('editAmountInvested').value);
+            const newMonthlyGoal = parseFloat(document.getElementById('editMonthlyGoal').value);
+            const newDividends = parseFloat(document.getElementById('editDividends').value);
+            const newProfitability = parseFloat(document.getElementById('editProfitability').value);
+
+            if (!isNaN(newAmountInvested)) {
+                amountInvested = newAmountInvested;
+                localStorage.setItem('amountInvested', amountInvested);
+            }
+            if (!isNaN(newMonthlyGoal)) {
+                monthlyGoal = newMonthlyGoal;
+                localStorage.setItem('monthlyGoal', monthlyGoal);
+            }
+            if (!isNaN(newDividends)) {
+                dividends = newDividends;
+                localStorage.setItem('dividends', dividends);
+            }
+            if (!isNaN(newProfitability)) {
+                profitability = newProfitability;
+                localStorage.setItem('profitability', profitability);
+            }
+            showNotification('Progresso do mês salvo com sucesso!', 'success');
+            toggleEditProgress(); // Exit editing mode
+            updateDisplay(); // Update all displays
+        }
+
+        function cancelEditProgress() {
+            // Restore original values
+            amountInvested = originalProgressValues.amountInvested;
+            monthlyGoal = originalProgressValues.monthlyGoal;
+            dividends = originalProgressValues.dividends;
+            profitability = originalProgressValues.profitability;
+
+            toggleEditProgress(); // Exit editing mode
+            updateDisplay(); // Revert display to original values
+            showNotification('Edição de progresso cancelada.', 'warning');
+        }
+
+        function updateProgressBars() {
+            // Total Alocado progress bar (always 100% relative to itself, or against monthly goal if desired)
+            const totalAllocatedProgressBar = document.getElementById('totalAllocatedProgressBar');
+            if (totalAllocatedProgressBar) {
+                // If you want it relative to the monthly goal:
+                // const progress = (amountInvested / monthlyGoal) * 100;
+                // totalAllocatedProgressBar.style.width = `${Math.min(100, progress)}%`;
+                totalAllocatedProgressBar.style.width = '100%'; // Assuming it always shows "100%" of what's allocated
+            }
+
+            // Monthly Goal progress bar
+            const monthlyGoalProgressBar = document.getElementById('monthlyGoalProgressBar');
+            if (monthlyGoalProgressBar && monthlyGoal > 0) {
+                const progress = (amountInvested / monthlyGoal) * 100;
+                monthlyGoalProgressBar.style.width = `${Math.min(100, progress)}%`;
+                monthlyGoalProgressBar.classList.toggle('bg-success', progress >= 100);
+                monthlyGoalProgressBar.classList.toggle('bg-primary-500', progress < 100);
+            } else if (monthlyGoalProgressBar) {
+                 monthlyGoalProgressBar.style.width = '0%';
+            }
+
+
+            // Dividends progress bar (assuming a target of 500 for demo, adjust as needed)
+            const dividendsProgressBar = document.getElementById('dividendsProgressBar');
+            const dividendTarget = 500; // Example target for dividends
+            if (dividendsProgressBar && dividendTarget > 0) {
+                const progress = (dividends / dividendTarget) * 100;
+                dividendsProgressBar.style.width = `${Math.min(100, progress)}%`;
+                dividendsProgressBar.classList.toggle('bg-success', progress >= 100);
+                dividendsProgressBar.classList.toggle('bg-warning', progress < 100);
+            } else if (dividendsProgressBar) {
+                dividendsProgressBar.style.width = '0%';
+            }
+
+
+            // Profitability progress bar (assuming 10% target for demo)
+            const profitabilityProgressBar = document.getElementById('profitabilityProgressBar');
+            const profitabilityTarget = 10; // Example target for profitability
+            if (profitabilityProgressBar && profitabilityTarget > 0) {
+                const progress = (profitability / profitabilityTarget) * 100;
+                profitabilityProgressBar.style.width = `${Math.min(100, progress)}%`;
+                 profitabilityProgressBar.classList.toggle('bg-success', progress >= 100);
+                profitabilityProgressBar.classList.toggle('bg-purple-500', progress < 100);
+            } else if (profitabilityProgressBar) {
+                profitabilityProgressBar.style.width = '0%';
+            }
+        }
+
+
+        // --- Funções do Saldo ---
+        function addFunds() {
+            document.getElementById('addFundsModal').classList.remove('hidden');
+            document.getElementById('newFundsInput').value = ''; // Clear input
+        }
+
+        function closeAddFundsModal() {
+            document.getElementById('addFundsModal').classList.add('hidden');
+        }
+
+        function confirmAddFunds() {
+            const newFunds = parseFloat(document.getElementById('newFundsInput').value);
+            if (!isNaN(newFunds) && newFunds > 0) {
+                currentBalance += newFunds;
+                localStorage.setItem('currentBalance', currentBalance);
+                updateDisplay();
+                closeAddFundsModal();
+                showNotification(`R$ ${newFunds.toFixed(2)} adicionados ao saldo!`, 'success');
+            } else {
+                showNotification('Por favor, insira um valor válido.', 'danger');
+            }
+        }
+
+        // --- Funções do Modal de Investimento ---
+        function openAddInvestmentModal(investment = null) {
+            const modal = document.getElementById('addInvestmentModal');
+            const form = document.getElementById('investmentForm');
+            const title = document.getElementById('investmentModalTitle');
+            const investmentIdInput = document.getElementById('investmentId');
+
+            form.reset(); // Clear form
+            editingInvestmentId = null; // Reset editing state
+
+            if (investment) {
+                // Edit existing investment
+                title.textContent = 'Editar Investimento';
+                investmentIdInput.value = investment.id;
+                document.getElementById('investmentSector').value = investment.sector;
+                document.getElementById('investmentAsset').value = investment.asset;
+                document.getElementById('investmentPercentage').value = investment.percentage;
+                document.getElementById('investmentValue').value = investment.value;
+                document.getElementById('investmentObservation').value = investment.observation;
+                editingInvestmentId = investment.id;
+            } else {
+                // Add new investment
+                title.textContent = 'Adicionar Investimento';
+                investmentIdInput.value = '';
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeAddInvestmentModal() {
+            document.getElementById('addInvestmentModal').classList.add('hidden');
+            document.getElementById('investmentForm').reset();
+            editingInvestmentId = null;
+        }
+
+        document.getElementById('investmentForm').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent default form submission
+
+            const id = document.getElementById('investmentId').value;
+            const sector = document.getElementById('investmentSector').value;
+            const asset = document.getElementById('investmentAsset').value;
+            const percentage = parseFloat(document.getElementById('investmentPercentage').value);
+            const value = parseFloat(document.getElementById('investmentValue').value);
+            const observation = document.getElementById('investmentObservation').value;
+
+            if (isNaN(percentage) || percentage < 0 || isNaN(value) || value < 0 || asset.trim() === '') {
+                showNotification('Por favor, preencha todos os campos corretamente (Percentual e Valor devem ser números positivos ou zero).', 'danger');
+                return;
+            }
+
+            // Calculate current total percentage for the *active* investment list (monthly or annual)
+            let currentTotalPercentage = investments.filter(inv => inv.id !== (editingInvestmentId || null)).reduce((sum, inv) => sum + inv.percentage, 0);
+
+            if (currentTotalPercentage + percentage > 100) {
+                showNotification(`A soma dos percentuais para o período atual não pode exceder 100%. (Atual: ${currentTotalPercentage}%, Tentando adicionar: ${percentage}%)`, 'danger');
+                return;
+            }
+
+
+            const color = document.getElementById('sectorColor').value;
+            const newInvestment = {
+                id: id ? parseInt(id) : Date.now(),
+                sector,
+                asset,
+                percentage,
+                value,
+                observation,
+                color: color || getDefaultColorForSector(sector)
+            };
+
+            addOrUpdateInvestment(newInvestment);
+            closeAddInvestmentModal();
+            updateDisplay();
+            showNotification(id ? 'Investimento atualizado com sucesso!' : 'Investimento adicionado com sucesso!', 'success');
+        });
+
+        function getDefaultColorForSector(sector) {
+            const colors = tailwind.config.theme.extend.colors;
+            switch(sector) {
+                case 'Renda Fixa': return colors.primary[500];
+                case 'Bancos': return colors.success;
+                case 'Energia': return colors.energy.DEFAULT;
+                case 'Utilidades': return colors.utilities.DEFAULT;
+                case 'Cripto': return colors.crypto.DEFAULT;
+                default: return colors.purple[500];
+            }
+        }
+
+        function addOrUpdateInvestment(newInvestment) {
+            if (currentView === 'monthly') {
+                updateInvestmentArray(monthlyInvestments, newInvestment);
+                localStorage.setItem('monthlyInvestments', JSON.stringify(monthlyInvestments));
+            } else { // annual
+                updateInvestmentArray(annualInvestments, newInvestment);
+                localStorage.setItem('annualInvestments', JSON.stringify(annualInvestments));
+            }
+            setInvestmentsForCurrentView(); // Recalculate amountInvested based on updated current view
+            localStorage.setItem('amountInvested', amountInvested); // Save the updated amountInvested (which reflects the current view)
+        }
+
+        // Helper to update or add to an array
+        function updateInvestmentArray(arr, newInvestment) {
+            const index = arr.findIndex(inv => inv.id === newInvestment.id);
+            if (index !== -1) {
+                arr[index] = newInvestment; // Update existing
+            } else {
+                arr.push(newInvestment); // Add new
+            }
+        }
+
+        function editInvestment(id) {
+            const investmentToEdit = investments.find(inv => inv.id === id);
+            if (investmentToEdit) {
+                openAddInvestmentModal(investmentToEdit);
+            }
+        }
+
+        function deleteInvestment(id) {
+            if (confirm('Tem certeza que deseja excluir este investimento?')) {
+                if (currentView === 'monthly') {
+                    monthlyInvestments = monthlyInvestments.filter(inv => inv.id !== id);
+                    localStorage.setItem('monthlyInvestments', JSON.stringify(monthlyInvestments));
+                } else { // annual
+                    annualInvestments = annualInvestments.filter(inv => inv.id !== id);
+                    localStorage.setItem('annualInvestments', JSON.stringify(annualInvestments));
+                }
+                setInvestmentsForCurrentView(); // Recalculate amountInvested and 'investments' array
+                localStorage.setItem('amountInvested', amountInvested); // Save the updated amountInvested
+                updateDisplay();
+                showNotification('Investimento excluído com sucesso!', 'danger');
+            }
+        }
+
+        function renderInvestmentsTable() {
+            const tableBody = document.getElementById('investmentsTableBody');
+            tableBody.innerHTML = ''; // Clear existing rows
+
+            investments.forEach(inv => {
+                const row = document.createElement('tr');
+                row.classList.add('border-b', 'border-darkbg-border', 'dark-table-row', 'last:border-b-0'); // Add dark-table-row for hover effect
+                row.innerHTML = `
+                    <td class="py-3 px-1">
+                        <div class="flex items-center gap-2">
+                            <div class="w-4 h-4 rounded-full" style="background-color: ${inv.color}"></div>
+                            ${inv.sector}
+                        </div>
+                    </td>
+                    <td class="py-3 px-1">${inv.asset}</td>
+                    <td class="py-3 px-1">${inv.percentage}%</td>
+                    <td class="py-3 px-1">R$ ${inv.value.toFixed(2)}</td>
+                    <td class="py-3 px-1 text-text-secondary text-sm">${inv.observation}</td>
+                    <td class="py-3 px-1">
+                        <button onclick="editInvestment(${inv.id})" class="text-primary-500 hover:text-primary-700 mr-2">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteInvestment(${inv.id})" class="text-danger hover:text-red-700">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            // If no investments, display a message
+            if (investments.length === 0) {
+                const noDataRow = document.createElement('tr');
+                noDataRow.innerHTML = `<td colspan="6" class="py-4 text-center text-text-secondary">Nenhum investimento registrado para este período.</td>`;
+                tableBody.appendChild(noDataRow);
+            }
+        }
+
+        // --- Funções do Gráfico de Distribuição ---
+        function updateChartAndProgressBars() {
+            // Ensure we use the 'investments' array which is already set for the current view
+            const totalValue = investments.reduce((sum, inv) => sum + inv.value, 0);
+
+            // Update chart total value display
+            document.getElementById('chartTotalValue').textContent = totalValue.toFixed(2);
+
+            // Calculate sector totals for the currently active investments
+            const sectorTotals = {
+                'Renda Fixa': 0,
+                'Bancos': 0,
+                'Energia/Utilidades': 0,
+                'ETFs Dividendos': 0,
+                'Outros': 0
+            };
+
+            investments.forEach(inv => {
+                if (sectorTotals.hasOwnProperty(inv.sector)) {
+                    sectorTotals[inv.sector] += inv.value;
+                } else {
+                    sectorTotals['Outros'] += inv.value; // Fallback for undefined sectors
+                }
+            });
+
+            // Update progress bars and percentages for each sector
+            const updateSectorDisplay = (sector, total, progressBarId, percentageId) => {
+                const percentage = totalValue > 0 ? (total / totalValue) * 100 : 0;
+                const elementPercentage = document.getElementById(percentageId);
+                const elementProgressBar = document.getElementById(progressBarId);
+
+                if (elementPercentage) {
+                    elementPercentage.textContent = `${percentage.toFixed(1)}% (R$ ${total.toFixed(2)})`;
+                }
+                if (elementProgressBar) {
+                    elementProgressBar.style.width = `${percentage}%`;
+                }
+            };
+
+            updateSectorDisplay('Renda Fixa', sectorTotals['Renda Fixa'], 'fixedIncomeProgressBar', 'fixedIncomePercentage');
+            updateSectorDisplay('Bancos', sectorTotals['Bancos'], 'banksProgressBar', 'banksPercentage');
+            updateSectorDisplay('Energia/Utilidades', sectorTotals['Energia/Utilidades'], 'utilitiesProgressBar', 'utilitiesPercentage');
+            updateSectorDisplay('ETFs Dividendos', sectorTotals['ETFs Dividendos'], 'etfsProgressBar', 'etfsPercentage');
+
+            // Update Doughnut Chart (SVG circles)
+            const circles = document.querySelectorAll('.progress-ring__circle');
+            const circumference = 2 * Math.PI * 40; // r=40
+            let currentAngle = -90; // Start at the top
+
+            const sectorsOrder = [
+                { id: 'Renda Fixa', color: 'primary.500', class: 'fixed-income' },
+                { id: 'Bancos', color: 'success', class: 'banks' },
+                { id: 'Energia', color: 'energy.DEFAULT', class: 'energy' },
+                { id: 'Utilidades', color: 'utilities.DEFAULT', class: 'utilities' },
+                { id: 'Cripto', color: 'crypto.DEFAULT', class: 'crypto' }
+            ];
+
+            let maxSectorValue = 0;
+            let maxSectorId = null;
+
+            // Find the sector with the largest value to potentially highlight it
+            for (const sectorName in sectorTotals) {
+                if (sectorTotals[sectorName] > maxSectorValue) {
+                    maxSectorValue = sectorTotals[sectorName];
+                    maxSectorId = sectorName;
+                }
+            }
+
+
+            sectorsOrder.forEach((sectorConfig, index) => {
+                const sectorValue = sectorTotals[sectorConfig.id] || 0;
+                const percentage = totalValue > 0 ? (sectorValue / totalValue) * 100 : 0;
+                const dasharray = (percentage / 100) * circumference;
+
+                if (circles[index]) { // Ensure the circle element exists
+                    circles[index].setAttribute('stroke-dasharray', `${dasharray} ${circumference - dasharray}`);
+                    circles[index].setAttribute('stroke-dashoffset', circumference); // Start with full offset
+                    circles[index].style.transform = `rotate(${currentAngle}deg)`; // Apply initial rotation for the segment start
+                    circles[index].style.stroke = tailwind.config.theme.extend.colors[sectorConfig.color.split('.')[0]][sectorConfig.color.split('.')[1] || 'DEFAULT']; // Apply color
+
+                    // Animate the dashoffset to reveal the segment
+                    setTimeout(() => {
+                        circles[index].style.strokeDashoffset = circumference - dasharray;
+                    }, 50); // Small delay for animation trigger
+                }
+               
+                currentAngle += (percentage * 3.6); // 3.6 degrees per percent (360 / 100)
+            });
+
+            // Reset any unused circles (if fewer than 4 sectors are present)
+            for (let i = sectorsOrder.length; i < circles.length; i++) {
+                circles[i].setAttribute('stroke-dasharray', `0 ${circumference}`);
+                circles[i].setAttribute('stroke-dashoffset', circumference);
+            }
+        }
+
+
+        // --- Funções de Notificação ---
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('notificationContainer');
+            const notification = document.createElement('div');
+            notification.classList.add('notification', 'px-4', 'py-2', 'rounded-lg', 'shadow-lg');
+
+            // Set background color based on type
+            if (type === 'success') {
+                notification.style.backgroundColor = tailwind.config.theme.extend.colors.success;
+            } else if (type === 'danger') {
+                notification.style.backgroundColor = tailwind.config.theme.extend.colors.danger;
+            } else if (type === 'warning') {
+                notification.style.backgroundColor = tailwind.config.theme.extend.colors.warning;
+            } else { // Default to info
+                notification.style.backgroundColor = tailwind.config.theme.extend.colors.darkbg.accent;
+            }
+
+            notification.textContent = message;
+            container.appendChild(notification);
+
+            // Show animation
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 50);
+
+            // Hide after a few seconds
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    notification.remove();
+                }, 300); // Remove element after transition
+            }, 3000); // Display for 3 seconds
+        }
+
+        // --- View Switching (Monthly/Annual) ---
+        function updateViewButtons() {
+            const monthlyBtn = document.getElementById('monthlyBtn');
+            const annualBtn = document.getElementById('annualBtn');
+
+            if (currentView === 'monthly') {
+                monthlyBtn.classList.remove('bg-darkbg-lighter', 'text-text-secondary');
+                monthlyBtn.classList.add('bg-primary-500', 'text-white');
+                annualBtn.classList.remove('bg-primary-500', 'text-white');
+                annualBtn.classList.add('bg-darkbg-lighter', 'text-text-secondary');
+            } else {
+                annualBtn.classList.remove('bg-darkbg-lighter', 'text-text-secondary');
+                annualBtn.classList.add('bg-primary-500', 'text-white');
+                monthlyBtn.classList.remove('bg-primary-500', 'text-white');
+                monthlyBtn.classList.add('bg-darkbg-lighter', 'text-text-secondary');
+            }
+        }
+
+        function showMonthlyView() {
+            currentView = 'monthly';
+            localStorage.setItem('currentView', 'monthly');
+            updateDisplay();
+            showNotification('Visualização mensal ativada.', 'info');
+        }
+
+        function showAnnualView() {
+            currentView = 'annual';
+            localStorage.setItem('currentView', 'annual');
+            updateDisplay();
+            showNotification('Visualização anual ativada.', 'info');
+        }
+
+
+        // Inicializa a exibição ao carregar a página
+        document.addEventListener('DOMContentLoaded', updateDisplay);
+
+    </script>
+</body>
+</html>
